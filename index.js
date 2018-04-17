@@ -81,8 +81,11 @@ Assertion.prototype.send = function(data) {
 
 Assertion.prototype.query = function(qs) {
   var q;
-  if(typeof qs == "string") {
+  if(typeof qs === "string") {
     q = querystring.parse(qs);
+  } else if(typeof qs === 'function') {
+    this.qs = qs;
+    return this;
   } else {
     q = qs;
   }
@@ -118,7 +121,10 @@ Assertion.prototype.reply = function(status, responseBody, responseHeaders) {
 
   this.app[this.method](this.path, function(req, res) {
     if(self.qs) {
-      assert.deepEqual(req.query, self.qs);
+      if (typeof self.qs === "string")
+        assert.deepEqual(req.query, self.qs);
+      else if (typeof self.qs === "function")
+        assert.deepEqual(self.qs(req.query), true);
     }
     if(self.requestBody) {
       if(req.text) {
