@@ -114,27 +114,38 @@ Assertion.prototype.persist = function() {
   return this;
 }
 
-Assertion.prototype.reply = function(status, responseBody, responseHeaders) {
+Assertion.prototype.reply = function(status, responseBody, responseHeaders,
+  errResponseBody, errResponseHeaders) {
   this.parseExpectedRequestBody();
 
   var self = this;
 
+  //
   this.app[this.method](this.path, function(req, res) {
-    if(self.qs) {
-      if (typeof self.qs === "string")
-        assert.deepEqual(req.query, self.qs);
-      else if (typeof self.qs === "function")
-        assert.deepEqual(self.qs(req.query), true);
-    }
-    if(self.requestBody) {
-      if(req.text) {
-        assert.deepEqual(req.text, self.requestBody);
-      } else {
-        assert.deepEqual(req.body, self.requestBody);
+    try {
+      if(self.qs) {
+        if (typeof self.qs === "string")
+          assert.deepEqual(req.query, self.qs);
+        else if (typeof self.qs === "function")
+          assert.deepEqual(self.qs(req.query), true);
       }
-    }
-    for(var name in self.headers) {
-      assert.deepEqual(req.headers[name], self.headers[name]);
+      if(self.requestBody) {
+        if(req.text) {
+          assert.deepEqual(req.text, self.requestBody);
+        } else {
+          assert.deepEqual(req.body, self.requestBody);
+        }
+      }
+      for(var name in self.headers) {
+        assert.deepEqual(req.headers[name], self.headers[name]);
+      }
+    } catch(e) {
+      if (e instanceof AssertionError) {
+        responseHeaders = errResponseHeaders;
+        responseBody = errResponseBody;
+      } else {
+        throw e;
+      }
     }
 
     if(responseHeaders) {
@@ -161,6 +172,7 @@ Assertion.prototype.reply = function(status, responseBody, responseHeaders) {
       reply();
     }
   });
+  //
 
   this.handler = new Handler(this);
   return this.handler;
