@@ -1,7 +1,7 @@
 var express = require("express");
 var methods = require("methods");
 var assert = require('assert-diff');
-const AssertionError = require('assert-diff').AssertionError;
+//const AssertionError = require('assert-diff').AssertionError;
 var querystring = require("querystring");
 var EventEmitter = require("events").EventEmitter;
 var util = require("util");
@@ -141,12 +141,12 @@ Assertion.prototype.reply = function(status, responseBody, responseHeaders,
         assert.deepEqual(req.headers[name], self.headers[name]);
       }
     } catch(e) {
-      if (e instanceof AssertionError) {
+      //if (e instanceof AssertionError) {
         responseHeaders = errResponseHeaders;
         responseBody = errResponseBody;
-      } else {
-        throw e;
-      }
+      //} else {
+      //  throw e;
+      //}
     }
 
     if(responseHeaders) {
