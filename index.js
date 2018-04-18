@@ -1,7 +1,7 @@
 var express = require("express");
 var methods = require("methods");
 var assert = require('assert-diff');
-//const AssertionError = require('assert-diff').AssertionError;
+const AssertionError = require('assert').AssertionError;
 var querystring = require("querystring");
 var EventEmitter = require("events").EventEmitter;
 var util = require("util");
@@ -121,7 +121,67 @@ Assertion.prototype.reply = function(status, responseBody, responseHeaders,
 
   var self = this;
 
-  //
+  this.app[this.method](this.path, function(req, res) {
+    try {
+      if(self.qs) {
+        if (typeof self.qs === "string")
+          assert.deepEqual(req.query, self.qs);
+        else if (typeof self.qs === "function")
+          assert.deepEqual(self.qs(req.query), true);
+      }
+      if(self.requestBody) {
+        if(req.text) {
+          assert.deepEqual(req.text, self.requestBody);
+        } else {
+          assert.deepEqual(req.body, self.requestBody);
+        }
+      }
+      for(var name in self.headers) {
+        assert.deepEqual(req.headers[name], self.headers[name]);
+      }
+    } catch(e) {
+      if (e instanceof AssertionError) {
+        responseHeaders = errResponseHeaders;
+        responseBody = errResponseBody;
+      } else {
+        throw e;
+      }
+    }
+
+    if(responseHeaders) {
+      res.set(responseHeaders);
+    }
+
+    var reply = function() {
+        self.handler.emit("done");
+
+        // Remove route from express since the expectation was met
+        // Unless this mock is suposed to persist
+        if (self.removeWhenMet) self.app._router.map[self.method].splice(req._route_index, 1);
+
+        if (typeof responseBody === 'function') {
+          res.status(status).send(responseBody(req));
+        } else {
+          res.status(status).send(responseBody);
+        }
+
+      };
+    if(self.delay_ms) {
+      setTimeout(reply, self.delay_ms);
+    } else {
+      reply();
+    }
+  });
+
+  this.handler = new Handler(this);
+  return this.handler;
+}
+
+Assertion.prototype.replyFunc = function(status, responseFunc) {
+  this.parseExpectedRequestBody();
+
+  var self = this;
+
   this.app[this.method](this.path, function(req, res) {
     try {
       if(self.qs) {
