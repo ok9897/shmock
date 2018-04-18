@@ -2,6 +2,7 @@ var express = require("express");
 var methods = require("methods");
 var assert = require('assert-diff');
 const AssertionError = require('assert').AssertionError;
+const TypeError = require('assert').TypeError;
 var querystring = require("querystring");
 var EventEmitter = require("events").EventEmitter;
 var util = require("util");
@@ -177,12 +178,15 @@ Assertion.prototype.reply = function(status, responseBody, responseHeaders,
   return this.handler;
 }
 
-Assertion.prototype.replyFunc = function(status, responseFunc) {
+Assertion.prototype.replyFunc = function(status, responseFunc, errorFunc) {
   this.parseExpectedRequestBody();
 
   var self = this;
 
   this.app[this.method](this.path, function(req, res) {
+
+    var errorFlag = false;
+
     try {
       if(self.qs) {
         if (typeof self.qs === "string")
@@ -201,16 +205,11 @@ Assertion.prototype.replyFunc = function(status, responseFunc) {
         assert.deepEqual(req.headers[name], self.headers[name]);
       }
     } catch(e) {
-      //if (e instanceof AssertionError) {
-        responseHeaders = errResponseHeaders;
-        responseBody = errResponseBody;
-      //} else {
-      //  throw e;
-      //}
-    }
-
-    if(responseHeaders) {
-      res.set(responseHeaders);
+      if (e instanceof AssertionError) {
+        errorFlag = true;
+      } else {
+        throw e;
+      }
     }
 
     var reply = function() {
@@ -220,10 +219,15 @@ Assertion.prototype.replyFunc = function(status, responseFunc) {
         // Unless this mock is suposed to persist
         if (self.removeWhenMet) self.app._router.map[self.method].splice(req._route_index, 1);
 
-        if (typeof responseBody === 'function') {
-          res.status(status).send(responseBody(req));
+        if (typeof responseFunc === 'function' and typeof errorFunc === 'function') {
+          if (errorFlag)
+            res.status(status).send(errorFunc(req));
+          else
+            res.status(status).send(responseFunc(req));
+        } else if (typeof responseFunc === 'function') {
+          res.status(status).send(responseFunc(req, errorFlag));
         } else {
-          res.status(status).send(responseBody);
+          throw new TypeError('Require function parameter on replyFunc()');
         }
 
       };
@@ -233,12 +237,12 @@ Assertion.prototype.replyFunc = function(status, responseFunc) {
       reply();
     }
   });
-  //
 
   this.handler = new Handler(this);
   return this.handler;
 }
 
+//TODO by OH: make handler to handle multiple requests
 function Handler(assertion) {
   this.defaults = {
     waitTimeout: 2000
