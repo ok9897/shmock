@@ -219,7 +219,7 @@ Assertion.prototype.replyFunc = function(status, responseFunc, errorFunc) {
         // Unless this mock is suposed to persist
         if (self.removeWhenMet) self.app._router.map[self.method].splice(req._route_index, 1);
 
-        if (typeof responseFunc === 'function' and typeof errorFunc === 'function') {
+        if (typeof responseFunc === 'function' && typeof errorFunc === 'function') {
           if (errorFlag)
             res.status(status).send(errorFunc(req));
           else
